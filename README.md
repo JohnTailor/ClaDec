@@ -9,7 +9,8 @@ It creates plots showing original and reconstructed samples (Explanations) by Cl
 
 In the paper, you can see more samples, in particular a comparison with a reference decoder.
 
-
+#Original and Explanations for last (logit) Layer
 ![Original and Explanations for last (logit) Layer](OrigVsClaDec-Lay-1.png)
 
+#Original and Explanations for last conv Layer]
 ![Original and Explanations for last conv Layer](OrigVsClaDec-Lay-2.png)

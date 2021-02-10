@@ -79,3 +79,55 @@ def getClaDec(cfg,netCl,norm,train_dataset):
     lcfg = {"ClaLo": closs}
     netDec.eval()
     return netDec,lcfg
+
+def getActModel(cfg,classifier):
+    ind = cfg["layInd"]
+    if ind<-1: ind=ind-2
+    actModel = nn.Sequential(*list(classifier.children())[:ind])
+    actModel.eval()
+    return actModel
+
+class RefAE(nn.Module):
+    def __init__(self, cfg,inShape):
+        super(RefAE, self).__init__()
+        self.cladec=ClaDecNet(cfg, inShape, cfg["imCh"])
+        self.cladec.train()
+        from models import Classifier
+        cla=Classifier(cfg)
+        actModel=getActModel(cfg,cla)
+        actModel.train()
+        self.seq=nn.Sequential(actModel,self.cladec)
+
+
+    def forward(self, x):
+        return self.seq(x)
+
+
+def getRefAE(cfg,train_dataset):
+    closs, teaccs, trep, clloss, clr = 0, [], cfg["opt"][1], nn.CrossEntropyLoss(), cfg["opt"][2]
+    print("Train RefAE")
+    scaler = tca.GradScaler()
+    d=next(iter(train_dataset))
+    netDec=RefAE(cfg, d[2].shape).cuda()
+    netDec.train()
+    optimizerCl = torch.optim.Adam(netDec.parameters(), lr=0.0003, weight_decay=1e-5)
+    aeloss=nn.MSELoss()
+    ulo=lambda closs,totloss,i: 0.97 * closs + 0.03 * totloss.item() if epoch > 20 else 0.8 * closs + 0.2 * totloss.item()
+    for epoch in range(trep):
+        for i, data in enumerate(train_dataset):
+            with tca.autocast():
+                optimizerCl.zero_grad()
+                dsx, dsy = data[0].cuda(), data[1].cuda()
+                output = netDec(dsx.float())
+                recloss = aeloss(output,dsx)
+                scaler.scale(recloss).backward()
+                scaler.step(optimizerCl)
+                scaler.update()
+                closs=ulo(closs,recloss,epoch)
+
+        decay(cfg["opt"], epoch, optimizerCl)
+        if (epoch % 2 == 0 and epoch <= 10) or (epoch % 10 == 0 and epoch > 10): print(epoch, np.round(np.array([closs]), 5))
+
+    lcfg = {"RefAELo": closs}
+    netDec.eval()
+    return netDec,lcfg

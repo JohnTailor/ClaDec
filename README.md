@@ -13,3 +13,7 @@ In the paper, you can see more samples, in particular a comparison with a refere
 ![Original and Explanations for last (logit) Layer](OrigVsClaDec-Lay-1.png)
 
 ![Original and Explanations for last conv Layer](OrigVsClaDec-Lay-2.png)
+
+
+mean = [0.4836, 0.4467, 0.3937]
+sigma = [0.2626, 0.2538, 0.2676]

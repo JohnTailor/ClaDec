@@ -49,17 +49,27 @@ def getActs(ds,actModel,cfg):
 def trainOne():
     dummy=False
     #dummy = True
+    #cfg={ 'ds': ('Fash', 10),  #Dataset either  ('Ci100', 100) or ('Ci10', 10)
+    #      'batchSize': 128, 'opt': ('S', 1 if dummy else 64, 0.1, 0.0001), #optimizer settings
+    #      'layInd':-1, #Layer to explain (from last layer back, ie. -1 is last (linear), -2 is last conv, -3 second last conv)
+    #      'alpha': 0.001, #tradeoff parameter reconstruction vs. classification loss
+    #      'ntrain': 500 if dummy else 60000}
     cfg={ 'ds': ('Fash', 10),  #Dataset either  ('Ci100', 100) or ('Ci10', 10)
-          'batchSize': 128, 'opt': ('S', 1 if dummy else 64, 0.1, 0.0001), #optimizer settings
-          'layInd':-1, #Layer to explain (from last layer back, ie. -1 is last (linear), -2 is last conv, -3 second last conv)
-          'alpha': 0.001, #tradeoff parameter reconstruction vs. classification loss
-          'ntrain': 500 if dummy else 60000}
+        'batchSize': 128, 'opt': ('S', 1 if dummy else 64, 0.1, 0.0001), #optimizer settings
+        'layInd':-1, #Layer to explain (from last layer back, ie. -1 is last (linear), -2 is last conv, -3 second last conv)
+        'alpha': 0.001, #tradeoff parameter reconstruction vs. classification loss
+        'ntrain': 500 if dummy else 60000}
+    cfg={ 'ds': ('Fash', 10),  #Dataset either  ('Ci100', 100) or ('Ci10', 10)
+    'batchSize': 128, 'opt': ('S', 1 if dummy else 64, 0.1, 0.0001), #optimizer settings
+    'layInd':-1, #Layer to explain (from last layer back, ie. -1 is last (linear), -2 is last conv, -3 second last conv)
+    'alpha': 0.001, #tradeoff parameter reconstruction vs. classification loss
+    'ntrain': 500 if dummy else 60000}
+
     print("Executing config",cfg)
     cfg["num_classes"]=cfg["ds"][1]
     #Get Data
     print("Get dataset")
     train_dataset, val_dataset,norm=dutils.getFullDS(cfg)
-
 
 
     # Train and save non-reflective Model

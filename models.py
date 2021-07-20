@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.cuda.amp as tca
+from tqdm import tqdm
 
 class Flatten(torch.nn.Module):
     def __init__(self):
@@ -49,13 +50,18 @@ class Classifier(nn.Module):
         self.conv3 = getConv()
         self.conv4a = getConv( down=False)
         self.conv4 = getConv()
-
+        
         self.convLays = [self.conv0,self.conv1, self.conv2a,self.conv2, self.conv3a,self.conv3, self.conv4a, self.conv4]
+        if cfg["ds"][0] == "TinyImgNet":
+            self.mp4 = nn.MaxPool2d((2,2), stride=2)
+            self.convLays.append(self.mp4)
+
         i, ker = -1, 1
         self.flat = Flatten()
         self.dropout = nn.Dropout(0.5)
+        #self.nfea = 2048 if cfg["ds"][0] == "TinyImgNet"else tr(512)
         self.nfea = tr(512)
-        self.pred = nn.Linear(tr(512), cfg["num_classes"])
+        self.pred = nn.Linear(self.nfea, cfg["num_classes"])
         self.allExplainLays = self.convLays+[self.pred]
 
 
@@ -79,6 +85,9 @@ def getAcc(net, dataset,  niter=10000,norm=None):
         for cit,data in enumerate(dataset):
             with tca.autocast():
                 dsx,dsy = data[0].cuda(),data[1].cuda()
+                if len(dsx.size()) == 5:
+                    dsx = dsx.squeeze(0)
+                    dsy = dsy.squeeze(0)
                 total += dsy.size(0)
                 outputs = net(dsx.float())
                 _, predicted = torch.max(outputs.data, 1)
@@ -89,19 +98,26 @@ def getAcc(net, dataset,  niter=10000,norm=None):
 
 def getclassifier(cfg,train_dataset,val_dataset,norm=None):
     netCl=Classifier(cfg).cuda()
-    optimizerCl = optim.SGD(netCl.parameters(), lr=cfg["opt"][2], momentum=0.9, weight_decay=cfg["opt"][3])
+    if cfg["ds"][0] == "TinyImgNet":
+        optimizerCl = optim.Adam(netCl.parameters(), lr=cfg["opt"][2], weight_decay=cfg["opt"][3])
+    else:
+        optimizerCl = optim.SGD(netCl.parameters(), lr=cfg["opt"][2], momentum=0.9, weight_decay=cfg["opt"][3])
+    #optimizerCl = optim.SGD(netCl.parameters(), lr=cfg["opt"][2], momentum=0.9, weight_decay=cfg["opt"][3])
     closs,teaccs,trep,loss,clr = 0,[],cfg["opt"][1],nn.CrossEntropyLoss(), cfg["opt"][2]
     print("Train Classifier to explain")
     scaler = tca.GradScaler()
     teAccs,trAccs=[],[]
     clAcc = lambda dataset: getAcc(netCl, dataset,  niter=1e10,norm=norm)
-    for epoch in range(trep):
+    for epoch in tqdm(range(trep)):
         netCl.train()
-        for i, data in enumerate(train_dataset):
+        for i, data in enumerate(tqdm(train_dataset, position=0, leave=True)):
           with tca.autocast():
             optimizerCl.zero_grad()
             dsx = data[0]
             dsx,dsy = dsx.cuda(),data[1].cuda()
+            if len(dsx.size()) == 5:
+                dsx = dsx.squeeze(0)
+                dsy = dsy.squeeze(0)
             output = netCl(dsx.float())
             errD_real = loss(output, dsy.long())
             scaler.scale(errD_real).backward()
